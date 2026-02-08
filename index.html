@@ -41,6 +41,89 @@
             font-size: 1.8rem;
         }
 
+        /* Login Section */
+        .login-section {
+            text-align: center;
+            padding: 40px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            margin-bottom: 20px;
+        }
+
+        .login-section h2 {
+            margin-bottom: 20px;
+        }
+
+        .login-btn {
+            padding: 15px 30px;
+            background: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .login-btn:hover {
+            background: #3367d6;
+        }
+
+        .logout-btn {
+            padding: 8px 16px;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            color: #aaa;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .loading-overlay.hidden {
+            display: none;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top-color: #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         /* User Selection */
         .user-selection {
             display: flex;
@@ -111,6 +194,10 @@
             border-radius: 20px;
             padding: 25px;
             backdrop-filter: blur(10px);
+        }
+
+        .main-content.hidden {
+            display: none;
         }
 
         /* Memo Input Section */
@@ -444,6 +531,21 @@
             color: #888;
         }
 
+        .sync-status {
+            text-align: center;
+            font-size: 0.75rem;
+            color: #888;
+            margin-top: 10px;
+        }
+
+        .sync-status.syncing {
+            color: #f39c12;
+        }
+
+        .sync-status.error {
+            color: #e74c3c;
+        }
+
         /* Mobile */
         @media (max-width: 600px) {
             .user-selection {
@@ -481,7 +583,23 @@
     <div class="container">
         <h1>가족 메모장</h1>
 
-        <div class="user-selection">
+        <!-- Google Login -->
+        <div class="login-section" id="loginSection">
+            <h2>Google 계정으로 로그인</h2>
+            <p style="margin-bottom: 20px; color: #aaa;">Google Sheets에 데이터를 저장합니다</p>
+            <button class="login-btn" id="loginBtn">
+                <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"/><path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"/><path fill="#FBBC05" d="M3.964 10.71c-.18-.54-.282-1.117-.282-1.71s.102-1.17.282-1.71V4.958H.957C.347 6.173 0 7.548 0 9s.348 2.827.957 4.042l3.007-2.332z"/><path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z"/></svg>
+                Google로 로그인
+            </button>
+        </div>
+
+        <!-- User Info -->
+        <div class="user-info hidden" id="userInfo">
+            <span id="userEmail"></span>
+            <button class="logout-btn" id="logoutBtn">로그아웃</button>
+        </div>
+
+        <div class="user-selection hidden" id="userSelection">
             <button class="user-btn dad" data-user="dad">
                 <span class="icon">👔</span>
                 <span>Dad</span>
@@ -499,7 +617,7 @@
             </button>
         </div>
 
-        <div class="main-content">
+        <div class="main-content hidden" id="mainContent">
             <!-- Memo Input -->
             <div class="memo-input-section">
                 <textarea id="memoInput" placeholder="메모를 입력하세요..."></textarea>
@@ -549,14 +667,35 @@
                     <div class="stat-label">공유</div>
                 </div>
             </div>
+
+            <div class="sync-status" id="syncStatus">Google Sheets 연동됨</div>
         </div>
     </div>
 
+    <!-- Loading Overlay -->
+    <div class="loading-overlay hidden" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div>데이터 불러오는 중...</div>
+    </div>
+
+    <!-- Google API -->
+    <script src="https://accounts.google.com/gsi/client"></script>
+    <script src="https://apis.google.com/js/api.js"></script>
+
     <script>
+        // Google API Config
+        const CLIENT_ID = '404773137190-u3q1jtakfgqkld28nmevc3vvo5ijtbag.apps.googleusercontent.com';
+        const SPREADSHEET_ID = '1ObPy9G6MHV0MskeKKjw4uDAtioDedV7iA80RoMa4lTQ';
+        const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
+
         // State
         let currentUser = 'dad';
         let selectedTag = 'todo';
         let currentFilter = 'all';
+        let allMemos = [];
+        let tokenClient;
+        let gapiInited = false;
+        let gisInited = false;
 
         // Elements
         const memoInput = document.getElementById('memoInput');
@@ -564,9 +703,15 @@
         const memoList = document.getElementById('memoList');
         const shareCheckbox = document.getElementById('shareCheckbox');
         const shareToggle = document.getElementById('shareToggle');
+        const loginSection = document.getElementById('loginSection');
+        const userInfo = document.getElementById('userInfo');
+        const userSelection = document.getElementById('userSelection');
+        const mainContent = document.getElementById('mainContent');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const syncStatus = document.getElementById('syncStatus');
 
         // User info
-        const userInfo = {
+        const userInfoData = {
             dad: { name: 'Dad', icon: '👔' },
             mom: { name: 'Mom', icon: '👩‍🍳' },
             son: { name: 'Son', icon: '🎒' }
@@ -578,6 +723,208 @@
             todo: '해야할 것',
             remember: '기억할 것'
         };
+
+        // Initialize Google API
+        function gapiLoaded() {
+            gapi.load('client', initializeGapiClient);
+        }
+
+        async function initializeGapiClient() {
+            await gapi.client.init({
+                discoveryDocs: ['https://sheets.googleapis.com/$discovery/rest?version=v4'],
+            });
+            gapiInited = true;
+            maybeEnableButtons();
+        }
+
+        function gisLoaded() {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: SCOPES,
+                callback: '', // defined later
+            });
+            gisInited = true;
+            maybeEnableButtons();
+        }
+
+        function maybeEnableButtons() {
+            if (gapiInited && gisInited) {
+                document.getElementById('loginBtn').disabled = false;
+
+                // Check if already logged in
+                const savedToken = localStorage.getItem('gapi_token');
+                if (savedToken) {
+                    gapi.client.setToken(JSON.parse(savedToken));
+                    onLoginSuccess();
+                }
+            }
+        }
+
+        // Login
+        document.getElementById('loginBtn').addEventListener('click', handleLogin);
+        document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+
+        function handleLogin() {
+            tokenClient.callback = async (resp) => {
+                if (resp.error !== undefined) {
+                    throw resp;
+                }
+                localStorage.setItem('gapi_token', JSON.stringify(gapi.client.getToken()));
+                onLoginSuccess();
+            };
+
+            if (gapi.client.getToken() === null) {
+                tokenClient.requestAccessToken({ prompt: 'consent' });
+            } else {
+                tokenClient.requestAccessToken({ prompt: '' });
+            }
+        }
+
+        function handleLogout() {
+            const token = gapi.client.getToken();
+            if (token !== null) {
+                google.accounts.oauth2.revoke(token.access_token);
+                gapi.client.setToken('');
+                localStorage.removeItem('gapi_token');
+            }
+            loginSection.classList.remove('hidden');
+            userInfo.classList.add('hidden');
+            userSelection.classList.add('hidden');
+            mainContent.classList.add('hidden');
+        }
+
+        async function onLoginSuccess() {
+            loginSection.classList.add('hidden');
+            userInfo.classList.remove('hidden');
+            userSelection.classList.remove('hidden');
+            mainContent.classList.remove('hidden');
+
+            // Get user email
+            try {
+                const token = gapi.client.getToken();
+                const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+                    headers: { Authorization: `Bearer ${token.access_token}` }
+                });
+                const userInfoDataRes = await response.json();
+                document.getElementById('userEmail').textContent = userInfoDataRes.email;
+            } catch (e) {
+                console.log('Could not get user info');
+            }
+
+            // Initialize sheet and load data
+            await initializeSheet();
+            await loadMemos();
+        }
+
+        // Initialize sheet with headers if empty
+        async function initializeSheet() {
+            try {
+                const response = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: 'Sheet1!A1:H1',
+                });
+
+                if (!response.result.values || response.result.values.length === 0) {
+                    // Add headers
+                    await gapi.client.sheets.spreadsheets.values.update({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: 'Sheet1!A1:H1',
+                        valueInputOption: 'RAW',
+                        resource: {
+                            values: [['id', 'text', 'tag', 'completed', 'shared', 'owner', 'createdAt', 'completedBy']]
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error('Error initializing sheet:', e);
+                syncStatus.textContent = '시트 초기화 오류';
+                syncStatus.classList.add('error');
+            }
+        }
+
+        // Load memos from Google Sheets
+        async function loadMemos() {
+            showLoading(true);
+            syncStatus.textContent = '동기화 중...';
+            syncStatus.classList.add('syncing');
+
+            try {
+                const response = await gapi.client.sheets.spreadsheets.values.get({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: 'Sheet1!A2:H1000',
+                });
+
+                const rows = response.result.values || [];
+                allMemos = rows.map(row => ({
+                    id: parseInt(row[0]),
+                    text: row[1] || '',
+                    tag: row[2] || 'todo',
+                    completed: row[3] === 'true',
+                    shared: row[4] === 'true',
+                    owner: row[5] || 'dad',
+                    createdAt: row[6] || new Date().toISOString(),
+                    completedBy: row[7] || null
+                })).filter(m => m.id);
+
+                syncStatus.textContent = 'Google Sheets 연동됨';
+                syncStatus.classList.remove('syncing', 'error');
+
+                renderMemos();
+                updateAllBadges();
+            } catch (e) {
+                console.error('Error loading memos:', e);
+                syncStatus.textContent = '데이터 로드 오류';
+                syncStatus.classList.add('error');
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // Save all memos to Google Sheets
+        async function saveMemos() {
+            syncStatus.textContent = '저장 중...';
+            syncStatus.classList.add('syncing');
+
+            try {
+                // Clear existing data (except header)
+                await gapi.client.sheets.spreadsheets.values.clear({
+                    spreadsheetId: SPREADSHEET_ID,
+                    range: 'Sheet1!A2:H1000',
+                });
+
+                if (allMemos.length > 0) {
+                    // Write all memos
+                    const values = allMemos.map(m => [
+                        m.id.toString(),
+                        m.text,
+                        m.tag,
+                        m.completed.toString(),
+                        m.shared.toString(),
+                        m.owner,
+                        m.createdAt,
+                        m.completedBy || ''
+                    ]);
+
+                    await gapi.client.sheets.spreadsheets.values.update({
+                        spreadsheetId: SPREADSHEET_ID,
+                        range: `Sheet1!A2:H${values.length + 1}`,
+                        valueInputOption: 'RAW',
+                        resource: { values }
+                    });
+                }
+
+                syncStatus.textContent = 'Google Sheets 연동됨';
+                syncStatus.classList.remove('syncing', 'error');
+            } catch (e) {
+                console.error('Error saving memos:', e);
+                syncStatus.textContent = '저장 오류';
+                syncStatus.classList.add('error');
+            }
+        }
+
+        function showLoading(show) {
+            loadingOverlay.classList.toggle('hidden', !show);
+        }
 
         // User selection
         document.querySelectorAll('.user-btn').forEach(btn => {
@@ -631,52 +978,17 @@
         document.querySelector('.user-btn.dad').classList.add('active');
         document.querySelector('.tag-btn.todo').classList.add('active');
 
-        // Storage keys
-        function getUserStorageKey(user) {
-            return `family_memo_${user}`;
-        }
-
-        function getSharedStorageKey() {
-            return 'family_memo_shared';
-        }
-
-        // Get user's own memos
-        function getUserMemos(user = currentUser) {
-            const saved = localStorage.getItem(getUserStorageKey(user));
-            return saved ? JSON.parse(saved) : [];
-        }
-
-        // Save user's memos
-        function saveUserMemos(memos, user = currentUser) {
-            localStorage.setItem(getUserStorageKey(user), JSON.stringify(memos));
-        }
-
-        // Get shared memos
-        function getSharedMemos() {
-            const saved = localStorage.getItem(getSharedStorageKey());
-            return saved ? JSON.parse(saved) : [];
-        }
-
-        // Save shared memos
-        function saveSharedMemos(memos) {
-            localStorage.setItem(getSharedStorageKey(), JSON.stringify(memos));
-        }
-
-        // Get all memos for current user (own + shared from others)
-        function getAllMemos() {
-            const ownMemos = getUserMemos();
-            const sharedMemos = getSharedMemos().filter(m => m.owner !== currentUser);
-
-            // Mark shared memos
-            sharedMemos.forEach(m => m.isFromOther = true);
-
-            return [...ownMemos, ...sharedMemos].sort((a, b) =>
-                new Date(b.createdAt) - new Date(a.createdAt)
-            );
+        // Get memos for current user view
+        function getMemosForView() {
+            return allMemos.map(m => ({
+                ...m,
+                isFromOther: m.shared && m.owner !== currentUser
+            })).filter(m => m.owner === currentUser || (m.shared && m.owner !== currentUser))
+            .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         }
 
         // Add memo
-        function addMemo() {
+        async function addMemo() {
             const text = memoInput.value.trim();
             if (!text) return;
 
@@ -689,20 +1001,11 @@
                 completed: false,
                 shared: isShared,
                 owner: currentUser,
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                completedBy: null
             };
 
-            // Save to user's own memos
-            const userMemos = getUserMemos();
-            userMemos.unshift(newMemo);
-            saveUserMemos(userMemos);
-
-            // If shared, also save to shared storage
-            if (isShared) {
-                const sharedMemos = getSharedMemos();
-                sharedMemos.unshift({...newMemo});
-                saveSharedMemos(sharedMemos);
-            }
+            allMemos.unshift(newMemo);
 
             memoInput.value = '';
             shareCheckbox.checked = false;
@@ -710,93 +1013,51 @@
 
             renderMemos();
             updateAllBadges();
+            await saveMemos();
         }
 
         // Toggle share status
-        function toggleShare(id) {
-            const userMemos = getUserMemos();
-            const memo = userMemos.find(m => m.id === id);
+        async function toggleShare(id) {
+            const memo = allMemos.find(m => m.id === id);
 
-            if (!memo || memo.tag === 'remember') return;
+            if (!memo || memo.tag === 'remember' || memo.owner !== currentUser) return;
 
             memo.shared = !memo.shared;
-            saveUserMemos(userMemos);
-
-            // Update shared storage
-            let sharedMemos = getSharedMemos();
-
-            if (memo.shared) {
-                // Add to shared
-                sharedMemos.push({...memo});
-            } else {
-                // Remove from shared
-                sharedMemos = sharedMemos.filter(m => m.id !== id);
-            }
-            saveSharedMemos(sharedMemos);
 
             renderMemos();
             updateAllBadges();
+            await saveMemos();
         }
 
         // Toggle complete
-        function toggleComplete(id, isFromOther = false) {
-            if (isFromOther) {
-                // Complete shared memo (mark in shared storage)
-                let sharedMemos = getSharedMemos();
-                const memo = sharedMemos.find(m => m.id === id);
-                if (memo) {
-                    memo.completed = !memo.completed;
-                    memo.completedBy = memo.completed ? currentUser : null;
-                    saveSharedMemos(sharedMemos);
-                }
-            } else {
-                // Complete own memo
-                const userMemos = getUserMemos();
-                const memo = userMemos.find(m => m.id === id);
-                if (memo) {
-                    memo.completed = !memo.completed;
-                    saveUserMemos(userMemos);
+        async function toggleComplete(id) {
+            const memo = allMemos.find(m => m.id === id);
+            if (!memo) return;
 
-                    // Also update in shared if shared
-                    if (memo.shared) {
-                        let sharedMemos = getSharedMemos();
-                        const sharedMemo = sharedMemos.find(m => m.id === id);
-                        if (sharedMemo) {
-                            sharedMemo.completed = memo.completed;
-                            saveSharedMemos(sharedMemos);
-                        }
-                    }
-                }
-            }
+            memo.completed = !memo.completed;
+            memo.completedBy = memo.completed ? currentUser : null;
 
             renderMemos();
             updateAllBadges();
+            await saveMemos();
         }
 
         // Delete memo
-        function deleteMemo(id, isFromOther = false) {
-            if (isFromOther) {
+        async function deleteMemo(id) {
+            const memo = allMemos.find(m => m.id === id);
+
+            if (memo && memo.owner !== currentUser) {
                 alert('다른 가족이 공유한 메모는 삭제할 수 없습니다.');
                 return;
             }
 
             if (!confirm('이 메모를 삭제할까요?')) return;
 
-            let userMemos = getUserMemos();
-            const memo = userMemos.find(m => m.id === id);
-
-            userMemos = userMemos.filter(m => m.id !== id);
-            saveUserMemos(userMemos);
-
-            // Also remove from shared if it was shared
-            if (memo && memo.shared) {
-                let sharedMemos = getSharedMemos();
-                sharedMemos = sharedMemos.filter(m => m.id !== id);
-                saveSharedMemos(sharedMemos);
-            }
+            allMemos = allMemos.filter(m => m.id !== id);
 
             renderMemos();
             updateAllBadges();
+            await saveMemos();
         }
 
         // Format date
@@ -811,8 +1072,7 @@
 
         // Get shared count for a user (memos shared TO them)
         function getSharedCountForUser(user) {
-            const sharedMemos = getSharedMemos();
-            return sharedMemos.filter(m => m.owner !== user && !m.completed).length;
+            return allMemos.filter(m => m.shared && m.owner !== user && !m.completed).length;
         }
 
         // Update all notification badges
@@ -831,13 +1091,13 @@
 
         // Render memos
         function renderMemos() {
-            let memos = getAllMemos();
+            let memos = getMemosForView();
 
             // Apply filter
             if (currentFilter === 'completed') {
                 memos = memos.filter(m => m.completed);
             } else if (currentFilter === 'shared') {
-                memos = memos.filter(m => m.shared || m.isFromOther);
+                memos = memos.filter(m => m.shared);
             } else if (currentFilter !== 'all') {
                 memos = memos.filter(m => m.tag === currentFilter && !m.completed);
             }
@@ -846,11 +1106,11 @@
                 memoList.innerHTML = '<div class="empty-message">메모가 없습니다.</div>';
             } else {
                 memoList.innerHTML = memos.map(memo => {
-                    const isOwn = !memo.isFromOther;
-                    const ownerInfo = userInfo[memo.owner];
+                    const isOwn = memo.owner === currentUser;
+                    const ownerInfo = userInfoData[memo.owner];
 
                     return `
-                    <div class="memo-item ${memo.completed ? 'completed' : ''} ${memo.shared || memo.isFromOther ? 'shared' : ''}">
+                    <div class="memo-item ${memo.completed ? 'completed' : ''} ${memo.shared ? 'shared' : ''}">
                         <div class="memo-header">
                             <div class="memo-tags">
                                 <span class="memo-tag ${memo.tag}">${tagNames[memo.tag]}</span>
@@ -866,10 +1126,10 @@
                                     ${memo.shared ? '🔒 공유해제' : '👨‍👩‍👦 공유'}
                                 </button>
                             ` : ''}
-                            <button class="complete-btn" onclick="toggleComplete(${memo.id}, ${memo.isFromOther || false})">
+                            <button class="complete-btn" onclick="toggleComplete(${memo.id})">
                                 ${memo.completed ? '↩️ 복구' : '✓ 완료'}
                             </button>
-                            ${isOwn ? `<button class="delete-btn" onclick="deleteMemo(${memo.id}, false)">삭제</button>` : ''}
+                            ${isOwn ? `<button class="delete-btn" onclick="deleteMemo(${memo.id})">삭제</button>` : ''}
                         </div>
                     </div>
                 `}).join('');
@@ -887,11 +1147,11 @@
 
         // Update stats
         function updateStats() {
-            const allMemos = getAllMemos();
-            const total = allMemos.length;
-            const active = allMemos.filter(m => !m.completed).length;
-            const completed = allMemos.filter(m => m.completed).length;
-            const shared = allMemos.filter(m => m.shared || m.isFromOther).length;
+            const memos = getMemosForView();
+            const total = memos.length;
+            const active = memos.filter(m => !m.completed).length;
+            const completed = memos.filter(m => m.completed).length;
+            const shared = memos.filter(m => m.shared).length;
 
             document.getElementById('totalCount').textContent = total;
             document.getElementById('activeCount').textContent = active;
@@ -910,9 +1170,9 @@
             }
         });
 
-        // Initial render
-        renderMemos();
-        updateAllBadges();
+        // Initialize Google APIs
+        gapiLoaded();
+        gisLoaded();
     </script>
 </body>
 </html>
