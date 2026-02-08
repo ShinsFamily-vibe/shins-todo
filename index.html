@@ -501,6 +501,15 @@
             background: #c0392b;
         }
 
+        .message-btn {
+            background: #34c759;
+            color: white;
+        }
+
+        .message-btn:hover {
+            background: #2db84d;
+        }
+
         .empty-message {
             text-align: center;
             padding: 40px;
@@ -1121,6 +1130,7 @@
                         </div>
                         <div class="memo-text">${escapeHtml(memo.text)}</div>
                         <div class="memo-actions">
+                            <button class="message-btn" onclick="shareViaMessage(${memo.id})">💬 공유</button>
                             ${isOwn && memo.tag !== 'remember' ? `
                                 <button class="share-btn ${memo.shared ? 'shared' : ''}" onclick="toggleShare(${memo.id})">
                                     ${memo.shared ? '🔒 공유해제' : '👨‍👩‍👦 공유'}
@@ -1136,6 +1146,29 @@
             }
 
             updateStats();
+        }
+
+        // Share via iMessage/SMS
+        function shareViaMessage(id) {
+            const memo = allMemos.find(m => m.id === id);
+            if (!memo) return;
+
+            const tagEmoji = { buy: '🛒', todo: '✅', remember: '💡' };
+            const text = `${tagEmoji[memo.tag]} ${tagNames[memo.tag]}: ${memo.text}`;
+
+            // Try Web Share API first (works on iOS Safari)
+            if (navigator.share) {
+                navigator.share({
+                    title: '가족 메모장',
+                    text: text
+                }).catch(() => {
+                    // Fallback to SMS link
+                    window.open(`sms:&body=${encodeURIComponent(text)}`);
+                });
+            } else {
+                // Fallback to SMS link
+                window.open(`sms:&body=${encodeURIComponent(text)}`);
+            }
         }
 
         // Escape HTML
