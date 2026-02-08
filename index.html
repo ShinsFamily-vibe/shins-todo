@@ -537,11 +537,15 @@
                     <div class="stat-label">전체</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-number" id="activeCount">0</div>
+                    <div class="stat-number" id="activeCount" style="color: #3498db;">0</div>
                     <div class="stat-label">진행중</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-number" id="sharedCount">0</div>
+                    <div class="stat-number" id="completedCount" style="color: #27ae60;">0</div>
+                    <div class="stat-label">완료</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number" id="sharedCount" style="color: #ffc107;">0</div>
                     <div class="stat-label">공유</div>
                 </div>
             </div>
@@ -886,10 +890,12 @@
             const allMemos = getAllMemos();
             const total = allMemos.length;
             const active = allMemos.filter(m => !m.completed).length;
+            const completed = allMemos.filter(m => m.completed).length;
             const shared = allMemos.filter(m => m.shared || m.isFromOther).length;
 
             document.getElementById('totalCount').textContent = total;
             document.getElementById('activeCount').textContent = active;
+            document.getElementById('completedCount').textContent = completed;
             document.getElementById('sharedCount').textContent = shared;
         }
 
