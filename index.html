@@ -989,10 +989,23 @@
 
         // Get memos for current user view
         function getMemosForView() {
+            const oneWeekAgo = new Date();
+            oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
             return allMemos.map(m => ({
                 ...m,
                 isFromOther: m.shared && m.owner !== currentUser
-            })).filter(m => m.owner === currentUser || (m.shared && m.owner !== currentUser))
+            })).filter(m => {
+                // Filter by user
+                if (m.owner !== currentUser && !(m.shared && m.owner !== currentUser)) {
+                    return false;
+                }
+                // Hide completed items older than 1 week
+                if (m.completed && new Date(m.createdAt) < oneWeekAgo) {
+                    return false;
+                }
+                return true;
+            })
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         }
 
